@@ -64,6 +64,32 @@ def test_notify_ignores_non_expiring_streaks() -> None:
     assert notifications == []
 
 
+
+def test_notify_user_of_streak_expiration_uses_streak_preference() -> None:
+    service = StreakService()
+    streak = service.add_streak(
+        "Hydration",
+        timedelta(hours=12),
+        notify_before=timedelta(hours=1),
+    )
+
+    base_time = datetime(2026, 1, 1, 10, tzinfo=timezone.utc)
+    service.add_to_streak(streak.id, now=base_time)
+
+    notifications = service.notify_expiring_streaks(
+        now=base_time + timedelta(hours=11, minutes=15),
+    )
+
+    assert len(notifications) == 1
+    assert notifications[0]["streak_id"] == streak.id
+
+
+def test_add_streak_rejects_non_positive_notify_before() -> None:
+    service = StreakService()
+
+    with pytest.raises(ValueError):
+        service.add_streak("Workout", timedelta(days=1), notify_before=timedelta(0))
+
 def test_validation_errors() -> None:
     service = StreakService()
     with pytest.raises(ValueError):

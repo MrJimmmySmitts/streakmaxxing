@@ -183,6 +183,15 @@
               <label><input type="radio" name="expiryUnit" value="years" />Years</label>
             </span>
           </label>
+          <label>
+            Notify before expiry
+            <input name="notifyAmount" type="number" min="1" value="2" required />
+            <span class="expiry-unit-options">
+              <label><input type="radio" name="notifyUnit" value="hours" checked />Hours</label>
+              <label><input type="radio" name="notifyUnit" value="days" />Days</label>
+              <label><input type="radio" name="notifyUnit" value="weeks" />Weeks</label>
+            </span>
+          </label>
         </div>
         <button type="submit">Add streak</button>
       </form>
@@ -191,7 +200,7 @@
     <section class="panel">
       <div class="streak-head">
         <h2 style="margin:0">Your streaks</h2>
-        <button id="check-expiring" class="ghost" type="button">Check expiring (next 2h)</button>
+        <button id="check-expiring" class="ghost" type="button">Check expiring streaks</button>
       </div>
       <div id="notifications"></div>
       <div id="streaks" class="streaks"></div>
@@ -226,8 +235,9 @@
       return expiryAt - Date.now();
     }
 
-    function expiryToMs(amount, unit) {
+    function toMs(amount, unit) {
       const multipliers = {
+        hours: 60 * 60 * 1000,
         days: 24 * 60 * 60 * 1000,
         weeks: 7 * 24 * 60 * 60 * 1000,
         months: 30 * 24 * 60 * 60 * 1000,
@@ -245,7 +255,7 @@
 
       $streaks.innerHTML = streaks.map((s) => {
         const expIn = expiresIn(s);
-        const isNearExpiry = expIn >= 0 && expIn <= 2 * 60 * 60 * 1000;
+        const isNearExpiry = expIn >= 0 && expIn <= s.notifyBeforeMs;
         return `
           <article class="streak">
             <div class="streak-head">
@@ -253,6 +263,7 @@
               <span class="badge ${isNearExpiry ? 'warn' : ''}">${expIn < 0 ? 'Expired' : `Expires in ${toDurationLabel(expIn)}`}</span>
             </div>
             <div class="muted">Current streak value: <strong style="color:var(--text)">${toDurationLabel(s.valueMs)}</strong></div>
+            <div class="muted">Notify ${toDurationLabel(s.notifyBeforeMs)} before expiry</div>
             <div class="row">
               <button type="button" data-add="${s.id}">Add to streak</button>
               <button type="button" class="danger" data-reset="${s.id}">Reset</button>
@@ -286,33 +297,39 @@
       const name = String(fd.get('name') || '').trim();
       const expiryAmount = Number(fd.get('expiryAmount'));
       const expiryUnit = String(fd.get('expiryUnit') || 'days');
-      const expiryWindowMs = expiryToMs(expiryAmount, expiryUnit);
-      if (!name || expiryWindowMs <= 0) return;
+      const notifyAmount = Number(fd.get('notifyAmount'));
+      const notifyUnit = String(fd.get('notifyUnit') || 'hours');
+      const expiryWindowMs = toMs(expiryAmount, expiryUnit);
+      const notifyBeforeMs = toMs(notifyAmount, notifyUnit);
+      if (!name || expiryWindowMs <= 0 || notifyBeforeMs <= 0) return;
 
       streaks.unshift({
         id: uid(),
         name,
         valueMs: 0,
         expiryWindowMs,
+        notifyBeforeMs,
         lastUpdatedAt: Date.now()
       });
 
       e.target.reset();
       e.target.expiryAmount.value = 1;
       e.target.querySelector('input[name="expiryUnit"][value="days"]').checked = true;
+      e.target.notifyAmount.value = 2;
+      e.target.querySelector('input[name="notifyUnit"][value="hours"]').checked = true;
       render();
     });
 
     document.getElementById('check-expiring').addEventListener('click', () => {
       const expiring = streaks.filter((s) => {
         const expIn = expiresIn(s);
-        return expIn >= 0 && expIn <= 2 * 60 * 60 * 1000;
+        return expIn >= 0 && expIn <= s.notifyBeforeMs;
       });
       if (!expiring.length) {
-        $notifications.innerHTML = '<p class="muted">No streaks expiring in the next 2 hours.</p>';
+        $notifications.innerHTML = '<p class="muted">No streaks are inside their notification windows.</p>';
         return;
       }
-      $notifications.innerHTML = expiring.map((s) => `<p class="note">⚠️ <strong>${s.name}</strong> is expiring soon. Add time to keep it alive.</p>`).join('');
+      $notifications.innerHTML = expiring.map((s) => `<p class="note">⚠️ <strong>${s.name}</strong> expires in ${toDurationLabel(expiresIn(s))}. Notification lead time: ${toDurationLabel(s.notifyBeforeMs)}.</p>`).join('');
     });
 
     render();

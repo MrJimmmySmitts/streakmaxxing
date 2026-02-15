@@ -15,6 +15,11 @@ class Streak:
     value: timedelta = field(default_factory=timedelta)
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     last_updated_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    notify_before: timedelta = field(default_factory=lambda: timedelta(hours=2))
+
+    def __post_init__(self) -> None:
+        if self.notify_before <= timedelta(0):
+            raise ValueError("notify_before must be positive")
 
     def add_time(self, amount: timedelta, now: datetime | None = None) -> None:
         """Add arbitrary time to the streak and refresh its update timestamp."""

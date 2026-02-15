@@ -20,12 +20,12 @@ pytest
 
 `StreakService` exposes:
 
-- `add_streak(name, expiry_window)`
+- `add_streak(name, expiry_window, notify_before=timedelta(hours=2))`
 - `list_streaks()`
 - `get_streak(streak_id)`
 - `add_to_streak(streak_id)`
 - `reset_streak(streak_id)`
-- `notify_expiring_streaks(window)`
+- `notify_expiring_streaks(window=None)` (uses each streak's configured `notify_before` when omitted)
 
 
 ## Front-end (simple modern UI)

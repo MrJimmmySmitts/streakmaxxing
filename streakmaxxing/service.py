@@ -12,14 +12,26 @@ class StreakService:
     def __init__(self) -> None:
         self._streaks: dict[str, Streak] = {}
 
-    def add_streak(self, name: str, expiry_window: timedelta) -> Streak:
+    def add_streak(
+        self,
+        name: str,
+        expiry_window: timedelta,
+        notify_before: timedelta = timedelta(hours=2),
+    ) -> Streak:
         """Create and register a new streak."""
         if not name.strip():
             raise ValueError("name is required")
         if expiry_window <= timedelta(0):
             raise ValueError("expiry_window must be positive")
 
-        streak = Streak(name=name.strip(), expiry_window=expiry_window)
+        if notify_before <= timedelta(0):
+            raise ValueError("notify_before must be positive")
+
+        streak = Streak(
+            name=name.strip(),
+            expiry_window=expiry_window,
+            notify_before=notify_before,
+        )
         self._streaks[streak.id] = streak
         return streak
 
@@ -52,14 +64,15 @@ class StreakService:
 
     def notify_expiring_streaks(
         self,
-        window: timedelta,
+        window: timedelta | None = None,
         now: datetime | None = None,
     ) -> list[dict[str, str]]:
         """Find streaks close to expiry and build simple notifications."""
         at_time = now or datetime.now(timezone.utc)
         notifications: list[dict[str, str]] = []
         for streak in self._streaks.values():
-            if streak.is_expiring_within(window, now=at_time):
+            notify_window = window if window is not None else streak.notify_before
+            if streak.is_expiring_within(notify_window, now=at_time):
                 notifications.append(
                     {
                         "streak_id": streak.id,
@@ -79,6 +92,7 @@ class StreakService:
             item = asdict(streak)
             item["expiry_window"] = int(streak.expiry_window.total_seconds())
             item["value"] = int(streak.value.total_seconds())
+            item["notify_before"] = int(streak.notify_before.total_seconds())
             item["created_at"] = streak.created_at.isoformat()
             item["last_updated_at"] = streak.last_updated_at.isoformat()
             payload.append(item)
