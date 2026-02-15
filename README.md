@@ -26,3 +26,17 @@ pytest
 - `add_to_streak(streak_id, days=0, weeks=0, hours=0, minutes=0)`
 - `reset_streak(streak_id)`
 - `notify_expiring_streaks(window)`
+
+
+## Front-end (simple modern UI)
+
+A lightweight static front-end is available at `frontend/index.html`.
+
+Run it locally:
+
+```bash
+cd frontend
+python -m http.server 8000
+```
+
+Then open <http://localhost:8000>.

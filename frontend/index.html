@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>StreakMaxxing</title>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --bg-soft: #121933;
+      --card: #141d3d;
+      --text: #e7ebff;
+      --muted: #9aa6d1;
+      --accent: #6ea8fe;
+      --accent-2: #7ef2c7;
+      --danger: #ff6b81;
+      --border: #2a376e;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background: radial-gradient(1200px 500px at 20% -20%, #21316a 0%, transparent 60%), var(--bg);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .app {
+      max-width: 1000px;
+      margin: 0 auto;
+      display: grid;
+      gap: 20px;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,.02), transparent), var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+    }
+
+    h1 { margin: 0 0 6px; font-size: 1.8rem; }
+    p { margin: 0; color: var(--muted); }
+
+    form { display: grid; gap: 12px; }
+    .row {
+      display: grid;
+      gap: 10px;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    }
+
+    label { font-size: .88rem; color: var(--muted); display: grid; gap: 6px; }
+
+    input {
+      width: 100%;
+      border: 1px solid var(--border);
+      background: var(--bg-soft);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 11px;
+      outline: none;
+    }
+
+    button {
+      border: 1px solid transparent;
+      color: #05132b;
+      background: linear-gradient(120deg, var(--accent), var(--accent-2));
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .ghost {
+      background: transparent;
+      color: var(--text);
+      border-color: var(--border);
+      font-weight: 600;
+    }
+
+    .danger {
+      background: transparent;
+      color: var(--danger);
+      border-color: rgba(255,107,129,.35);
+    }
+
+    .streaks { display: grid; gap: 12px; }
+    .streak {
+      border: 1px solid var(--border);
+      background: var(--bg-soft);
+      border-radius: 14px;
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .streak-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: .8rem;
+      padding: 4px 8px;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+
+    .warn {
+      color: #ffd166;
+      border-color: rgba(255,209,102,.3);
+      background: rgba(255,209,102,.08);
+    }
+
+    .muted { color: var(--muted); font-size: .9rem; }
+    .note {
+      border: 1px solid rgba(255,209,102,.35);
+      border-radius: 12px;
+      padding: 10px;
+      background: rgba(255,209,102,.08);
+      color: #ffdc95;
+      font-size: .92rem;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <section class="panel">
+      <h1>🔥 StreakMaxxing</h1>
+      <p>Build habits, maintain your streak, and stay ahead of expiration.</p>
+    </section>
+
+    <section class="panel">
+      <h2>Create streak</h2>
+      <form id="new-streak-form">
+        <div class="row">
+          <label>
+            Name
+            <input name="name" placeholder="Workout" required />
+          </label>
+          <label>
+            Expiry (hours)
+            <input name="expiryHours" type="number" min="1" value="24" required />
+          </label>
+        </div>
+        <button type="submit">Add streak</button>
+      </form>
+    </section>
+
+    <section class="panel">
+      <div class="streak-head">
+        <h2 style="margin:0">Your streaks</h2>
+        <button id="check-expiring" class="ghost" type="button">Check expiring (next 2h)</button>
+      </div>
+      <div id="notifications"></div>
+      <div id="streaks" class="streaks"></div>
+    </section>
+  </main>
+
+  <script>
+    const streaks = [];
+    const $streaks = document.getElementById('streaks');
+    const $notifications = document.getElementById('notifications');
+
+    function uid() {
+      return Math.random().toString(36).slice(2, 10);
+    }
+
+    function toDurationLabel(ms) {
+      const totalMinutes = Math.floor(ms / 60000);
+      const weeks = Math.floor(totalMinutes / (60 * 24 * 7));
+      const days = Math.floor((totalMinutes % (60 * 24 * 7)) / (60 * 24));
+      const hours = Math.floor((totalMinutes % (60 * 24)) / 60);
+      const minutes = totalMinutes % 60;
+      const chunks = [];
+      if (weeks) chunks.push(`${weeks}w`);
+      if (days) chunks.push(`${days}d`);
+      if (hours) chunks.push(`${hours}h`);
+      if (minutes || !chunks.length) chunks.push(`${minutes}m`);
+      return chunks.join(' ');
+    }
+
+    function expiresIn(streak) {
+      const expiryAt = streak.lastUpdatedAt + streak.expiryWindowMs;
+      return expiryAt - Date.now();
+    }
+
+    function render() {
+      if (!streaks.length) {
+        $streaks.innerHTML = '<p class="muted">No streaks yet. Add one above to get started.</p>';
+        return;
+      }
+
+      $streaks.innerHTML = streaks.map((s) => {
+        const expIn = expiresIn(s);
+        const isNearExpiry = expIn >= 0 && expIn <= 2 * 60 * 60 * 1000;
+        return `
+          <article class="streak">
+            <div class="streak-head">
+              <strong>${s.name}</strong>
+              <span class="badge ${isNearExpiry ? 'warn' : ''}">${expIn < 0 ? 'Expired' : `Expires in ${toDurationLabel(expIn)}`}</span>
+            </div>
+            <div class="muted">Current streak value: <strong style="color:var(--text)">${toDurationLabel(s.valueMs)}</strong></div>
+            <form data-id="${s.id}" class="add-form">
+              <div class="row">
+                <label>Weeks<input name="weeks" type="number" min="0" value="0" /></label>
+                <label>Days<input name="days" type="number" min="0" value="0" /></label>
+                <label>Hours<input name="hours" type="number" min="0" value="0" /></label>
+                <label>Minutes<input name="minutes" type="number" min="0" value="0" /></label>
+              </div>
+              <div class="row">
+                <button type="submit">Add to streak</button>
+                <button type="button" class="danger" data-reset="${s.id}">Reset</button>
+              </div>
+            </form>
+          </article>
+        `;
+      }).join('');
+
+      document.querySelectorAll('.add-form').forEach((f) => {
+        f.addEventListener('submit', (e) => {
+          e.preventDefault();
+          const id = f.dataset.id;
+          const s = streaks.find((item) => item.id === id);
+          const fd = new FormData(f);
+          const weeks = Number(fd.get('weeks') || 0);
+          const days = Number(fd.get('days') || 0);
+          const hours = Number(fd.get('hours') || 0);
+          const minutes = Number(fd.get('minutes') || 0);
+          const amountMs = (((weeks * 7 + days) * 24 + hours) * 60 + minutes) * 60000;
+          if (amountMs <= 0) {
+            alert('Add a positive amount of time.');
+            return;
+          }
+          s.valueMs += amountMs;
+          s.lastUpdatedAt = Date.now();
+          render();
+        });
+      });
+
+      document.querySelectorAll('button[data-reset]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const s = streaks.find((item) => item.id === btn.dataset.reset);
+          s.valueMs = 0;
+          s.lastUpdatedAt = Date.now();
+          render();
+        });
+      });
+    }
+
+    document.getElementById('new-streak-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const fd = new FormData(e.target);
+      const name = String(fd.get('name') || '').trim();
+      const expiryHours = Number(fd.get('expiryHours'));
+      if (!name || expiryHours <= 0) return;
+
+      streaks.unshift({
+        id: uid(),
+        name,
+        valueMs: 0,
+        expiryWindowMs: expiryHours * 60 * 60 * 1000,
+        lastUpdatedAt: Date.now()
+      });
+
+      e.target.reset();
+      e.target.expiryHours.value = 24;
+      render();
+    });
+
+    document.getElementById('check-expiring').addEventListener('click', () => {
+      const expiring = streaks.filter((s) => {
+        const expIn = expiresIn(s);
+        return expIn >= 0 && expIn <= 2 * 60 * 60 * 1000;
+      });
+      if (!expiring.length) {
+        $notifications.innerHTML = '<p class="muted">No streaks expiring in the next 2 hours.</p>';
+        return;
+      }
+      $notifications.innerHTML = expiring.map((s) => `<p class="note">⚠️ <strong>${s.name}</strong> is expiring soon. Add time to keep it alive.</p>`).join('');
+    });
+
+    render();
+    setInterval(render, 30000);
+  </script>
+</body>
+</html>
