@@ -37,17 +37,11 @@ class StreakService:
     def add_to_streak(
         self,
         streak_id: str,
-        *,
-        days: int = 0,
-        weeks: int = 0,
-        hours: int = 0,
-        minutes: int = 0,
         now: datetime | None = None,
     ) -> Streak:
-        """Add custom duration to streak."""
-        amount = timedelta(days=days, weeks=weeks, hours=hours, minutes=minutes)
+        """Add one expiry window unit to the streak."""
         streak = self.get_streak(streak_id)
-        streak.add_time(amount, now=now)
+        streak.add_time(streak.expiry_window, now=now)
         return streak
 
     def reset_streak(self, streak_id: str, now: datetime | None = None) -> Streak:
