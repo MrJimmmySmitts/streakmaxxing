@@ -253,38 +253,18 @@
               <span class="badge ${isNearExpiry ? 'warn' : ''}">${expIn < 0 ? 'Expired' : `Expires in ${toDurationLabel(expIn)}`}</span>
             </div>
             <div class="muted">Current streak value: <strong style="color:var(--text)">${toDurationLabel(s.valueMs)}</strong></div>
-            <form data-id="${s.id}" class="add-form">
-              <div class="row">
-                <label>Weeks<input name="weeks" type="number" min="0" value="0" /></label>
-                <label>Days<input name="days" type="number" min="0" value="0" /></label>
-                <label>Hours<input name="hours" type="number" min="0" value="0" /></label>
-                <label>Minutes<input name="minutes" type="number" min="0" value="0" /></label>
-              </div>
-              <div class="row">
-                <button type="submit">Add to streak</button>
-                <button type="button" class="danger" data-reset="${s.id}">Reset</button>
-              </div>
-            </form>
+            <div class="row">
+              <button type="button" data-add="${s.id}">Add to streak</button>
+              <button type="button" class="danger" data-reset="${s.id}">Reset</button>
+            </div>
           </article>
         `;
       }).join('');
 
-      document.querySelectorAll('.add-form').forEach((f) => {
-        f.addEventListener('submit', (e) => {
-          e.preventDefault();
-          const id = f.dataset.id;
-          const s = streaks.find((item) => item.id === id);
-          const fd = new FormData(f);
-          const weeks = Number(fd.get('weeks') || 0);
-          const days = Number(fd.get('days') || 0);
-          const hours = Number(fd.get('hours') || 0);
-          const minutes = Number(fd.get('minutes') || 0);
-          const amountMs = (((weeks * 7 + days) * 24 + hours) * 60 + minutes) * 60000;
-          if (amountMs <= 0) {
-            alert('Add a positive amount of time.');
-            return;
-          }
-          s.valueMs += amountMs;
+      document.querySelectorAll('button[data-add]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const s = streaks.find((item) => item.id === btn.dataset.add);
+          s.valueMs += s.expiryWindowMs;
           s.lastUpdatedAt = Date.now();
           render();
         });
