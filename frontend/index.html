@@ -65,6 +65,32 @@
       outline: none;
     }
 
+    .expiry-unit-options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 2px;
+    }
+
+    .expiry-unit-options label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--text);
+      background: var(--bg-soft);
+      cursor: pointer;
+      font-size: .84rem;
+    }
+
+    .expiry-unit-options input {
+      width: auto;
+      accent-color: var(--accent);
+      margin: 0;
+    }
+
     button {
       border: 1px solid transparent;
       color: #05132b;
@@ -148,8 +174,14 @@
             <input name="name" placeholder="Workout" required />
           </label>
           <label>
-            Expiry (hours)
-            <input name="expiryHours" type="number" min="1" value="24" required />
+            Expiry duration
+            <input name="expiryAmount" type="number" min="1" value="1" required />
+            <span class="expiry-unit-options">
+              <label><input type="radio" name="expiryUnit" value="days" checked />Days</label>
+              <label><input type="radio" name="expiryUnit" value="weeks" />Weeks</label>
+              <label><input type="radio" name="expiryUnit" value="months" />Months</label>
+              <label><input type="radio" name="expiryUnit" value="years" />Years</label>
+            </span>
           </label>
         </div>
         <button type="submit">Add streak</button>
@@ -192,6 +224,17 @@
     function expiresIn(streak) {
       const expiryAt = streak.lastUpdatedAt + streak.expiryWindowMs;
       return expiryAt - Date.now();
+    }
+
+    function expiryToMs(amount, unit) {
+      const multipliers = {
+        days: 24 * 60 * 60 * 1000,
+        weeks: 7 * 24 * 60 * 60 * 1000,
+        months: 30 * 24 * 60 * 60 * 1000,
+        years: 365 * 24 * 60 * 60 * 1000,
+      };
+      const multiplier = multipliers[unit];
+      return amount > 0 && multiplier ? amount * multiplier : 0;
     }
 
     function render() {
@@ -261,19 +304,22 @@
       e.preventDefault();
       const fd = new FormData(e.target);
       const name = String(fd.get('name') || '').trim();
-      const expiryHours = Number(fd.get('expiryHours'));
-      if (!name || expiryHours <= 0) return;
+      const expiryAmount = Number(fd.get('expiryAmount'));
+      const expiryUnit = String(fd.get('expiryUnit') || 'days');
+      const expiryWindowMs = expiryToMs(expiryAmount, expiryUnit);
+      if (!name || expiryWindowMs <= 0) return;
 
       streaks.unshift({
         id: uid(),
         name,
         valueMs: 0,
-        expiryWindowMs: expiryHours * 60 * 60 * 1000,
+        expiryWindowMs,
         lastUpdatedAt: Date.now()
       });
 
       e.target.reset();
-      e.target.expiryHours.value = 24;
+      e.target.expiryAmount.value = 1;
+      e.target.querySelector('input[name="expiryUnit"][value="days"]').checked = true;
       render();
     });
 
